@@ -13,9 +13,55 @@ interface Feriado {
   type: string;
 }
 
+// Função para gerar a escala anual (adicione antes do componente Calendar)
+const Turnos = ["Manhã", "Tarde","Noite", "Folga"];
+const DiasTrabalhados = 1;
+const Folgas = 0;
+const Datainicio = new Date("2025-05-02");
+
+interface Escala {
+  data: string;
+  turno: string;
+}
+
+function gerarEscalaAnual(): Escala[] {
+  const escala: Escala[] = [];
+  let dataAtual = new Date(Datainicio);
+  const ano = Datainicio.getFullYear();
+
+  function formatarData(d: Date) {
+    return d.toISOString().split('T')[0];
+  }
+
+  const ultimoDiaAno = new Date(ano, 11, 31);
+  let indiceTurno = 0;
+
+  while (dataAtual <= ultimoDiaAno) {
+    for (let i = 0; i < DiasTrabalhados; i++) {
+      if (dataAtual > ultimoDiaAno) break;
+      escala.push({
+        data: formatarData(dataAtual),
+        turno: Turnos[indiceTurno],
+      });
+      dataAtual.setDate(dataAtual.getDate() + 1);
+    }
+    for (let j = 0; j < Folgas; j++) {
+      if (dataAtual > ultimoDiaAno) break;
+      escala.push({
+        data: formatarData(dataAtual),
+        turno: "Folga",
+      });
+      dataAtual.setDate(dataAtual.getDate() + 1);
+    }
+    indiceTurno = (indiceTurno + 1) % Turnos.length;
+  }
+  return escala;
+}
+
 const Calendar = () => {
   const currentYear = dayjs().year();
   const [feriados, setFeriados] = useState<Feriado[]>([]);
+  const escalaAnual = gerarEscalaAnual();
 
   useEffect(() => {
     const fetchFeriados = async () => {
@@ -50,18 +96,37 @@ const Calendar = () => {
       const feriado = feriados.find((f) =>
         dayjs(f.date).isSame(date, "day")
       );
+      // Busca o turno na escala
+      const escalaDia = escalaAnual.find((e) =>
+        dayjs(e.data).isSame(date, "day")
+      );
 
       days.push(
         <div
           key={`day-${monthIndex}-${day}`}
           className={`text-center p-2 rounded border 
-            ${feriado ? "bg-red-100 text-red-800 font-semibold" : "hover:bg-blue-500 hover:text-white"} 
+            ${
+              feriado
+                ? "bg-red-100 text-red-800 font-semibold"
+                : escalaDia?.turno === "Folga"
+                ? "bg-green-100 text-green-800"
+                : escalaDia?.turno === "Noite"
+                ? "bg-blue-100 text-blue-800"
+                : escalaDia?.turno === "Tarde"
+                ? "bg-yellow-100 text-yellow-800"
+                : escalaDia?.turno === "Manhã"
+                ? "bg-purple-100 text-purple-800"
+                : "hover:bg-blue-500 hover:text-white"
+            } 
             cursor-pointer`}
           title={feriado?.name || ""}
         >
           <div>{day}</div>
           {feriado && (
             <div className="text-xs mt-1 hover:text-white"></div>
+          )}
+          {escalaDia && (
+            <div className="text-xs mt-1">{escalaDia.turno}</div>
           )}
         </div>
       );
