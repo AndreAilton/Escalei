@@ -5,7 +5,9 @@ import axios from "axios";
 import {
   DndContext,
   closestCenter,
+  MouseSensor,
   PointerSensor,
+  TouchSensor,
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
@@ -75,32 +77,40 @@ function gerarEscalaAnual(
   return escala;
 }
 
-// Paleta de cores para os turnos
 const turnoColors = [
-  { bg: "#b3c7e6", text: "#222" }, // Azul claro
-  { bg: "#deaf3c", text: "#222" }, // Amarelo
-  { bg: "#d2d3d6", text: "#333" }, // Cinza claro
-  { bg: "#a3e6b3", text: "#222" }, // Verde claro extra
-  { bg: "#e6b3c7", text: "#222" }, // Rosa claro extra
+  { bg: "#b3c7e6", text: "#222" },
+  { bg: "#deaf3c", text: "#222" },
+  { bg: "#d2d3d6", text: "#333" },
+  { bg: "#a3e6b3", text: "#222" },
+  { bg: "#e6b3c7", text: "#222" },
 ];
 
 const Calendar = () => {
   const currentYear = dayjs().year();
   const [feriados, setFeriados] = useState<Feriado[]>([]);
 
-  // Estados para os campos editáveis
-  const [turnos, setTurnos] = useState<string[]>(["Tarde", "Manhã", "Noite"]);
+  // Estado dos turnos como string[]
+  const [turnos, setTurnos] = useState<string[]>([]);
   const [novoTurno, setNovoTurno] = useState<string>("");
   const [diasTrabalhados, setDiasTrabalhados] = useState<number>(6);
   const [folgas, setFolgas] = useState<number>(2);
   const [datainicio, setDatainicio] = useState<string>("2025-01-01");
-
-  // Estado para escala
   const [escalaAnual, setEscalaAnual] = useState<Escala[]>([]);
   const [gerar, setGerar] = useState<boolean>(false);
+  const [erro, setErro] = useState<string | null>(null);
 
-  // Adicione um novo estado para controlar se deve gerar a escala após drag and drop
-  const [reordenar, setReordenar] = useState(false);
+  const mouseSensor = useSensor(MouseSensor, {
+    activationConstraint: {
+      distance: 5, // só começa a arrastar após mover 5px
+    },
+  });
+  const touchSensor = useSensor(TouchSensor, {
+    activationConstraint: {
+      delay: 100,
+      tolerance: 5,
+    },
+  });
+  const sensors = useSensors(mouseSensor, touchSensor);
 
   useEffect(() => {
     const fetchFeriados = async () => {
@@ -113,71 +123,108 @@ const Calendar = () => {
         console.error("Erro ao buscar feriados:", err);
       }
     };
-
     fetchFeriados();
   }, [currentYear]);
 
-  // Atualiza a escala apenas quando clicar em "Gerar Calendário"
   useEffect(() => {
     if (gerar) {
-      // Ao gerar a escala, crie a data assim:
+      if (!turnos.length) {
+        setErro("Adicione pelo menos um turno para gerar o calendário.");
+        setGerar(false);
+        setEscalaAnual([]);
+        return;
+      }
       const dataInicioObj = dayjs(datainicio, "YYYY-MM-DD").toDate();
       setEscalaAnual(
         gerarEscalaAnual(turnos, diasTrabalhados, folgas, dataInicioObj)
       );
+      setErro(null);
       setGerar(false);
     }
-    // Removido as dependências das variáveis para não atualizar automaticamente
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gerar]);
-
-  // Novo useEffect para gerar a escala após reordenação
-  useEffect(() => {
-    if (reordenar) {
-      const dataInicioObj = dayjs(datainicio, "YYYY-MM-DD").toDate();
-      setEscalaAnual(
-        gerarEscalaAnual(turnos, diasTrabalhados, folgas, dataInicioObj)
-      );
-      setReordenar(false);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [reordenar, turnos, diasTrabalhados, folgas, datainicio]);
 
   const handleAddTurno = () => {
     const t = novoTurno.trim();
-    if (t && !turnos.includes(t)) {
-      setTurnos([...turnos, t]);
-      setNovoTurno("");
+    if (!t) {
+      setErro("Digite um nome para o turno.");
+      return;
+    }
+    if (turnos.includes(t)) {
+      setErro("Turno já adicionado.");
+      return;
+    }
+    setTurnos([...turnos, t]);
+    setNovoTurno("");
+    setErro(null);
+  };
+
+  // Função para remover pelo índice
+  const handleRemoveTurno = (idx: number) => {
+    const novosTurnos = turnos.filter((_, i) => i !== idx);
+    setTurnos(novosTurnos);
+    if (!novosTurnos.length) {
+      setEscalaAnual([]);
+      setErro("Adicione pelo menos um turno para gerar o calendário.");
+    } else {
+      const dataInicioObj = dayjs(datainicio, "YYYY-MM-DD").toDate();
+      setEscalaAnual(
+        gerarEscalaAnual(novosTurnos, diasTrabalhados, folgas, dataInicioObj)
+      );
+      setErro(null);
     }
   };
 
-  const handleRemoveTurno = (turno: string) => {
-    const novosTurnos = turnos.filter((t) => t !== turno);
-    setTurnos(novosTurnos);
-    // Gera o calendário imediatamente após remover um turno
-    setEscalaAnual(
-      gerarEscalaAnual(
-        novosTurnos,
-        diasTrabalhados,
-        folgas,
-        new Date(datainicio)
-      )
+  function SortableTurno({ turno, idx, onRemove, color }: any) {
+    const { attributes, listeners, setNodeRef, transform, transition } =
+      useSortable({ id: idx });
+
+    const style = {
+      transform: CSS.Transform.toString(transform),
+      transition,
+      background: color.bg,
+      color: color.text,
+      cursor: "grab",
+      userSelect: "none",
+    };
+
+    return (
+      <span
+        ref={setNodeRef}
+        style={style as React.CSSProperties}
+        {...attributes}
+        {...listeners}
+        className="flex items-center px-2 py-1 rounded text-xs select-none"
+      >
+        {turno}
+        <button
+          type="button"
+          tabIndex={-1}
+          onClick={(e) => {
+            e.stopPropagation();
+            onRemove(idx);
+          }}
+          className="ml-2 text-red-600 font-bold hover:text-red-800"
+          title="Remover"
+        >
+          ×
+        </button>
+      </span>
     );
-  };
+  }
 
-  // Sensores do dnd-kit
-  const sensors = useSensors(useSensor(PointerSensor));
-
-  // Função para reordenar turnos
+  // Drag-and-drop usando índices
   const handleDragEnd = (event: any) => {
     const { active, over } = event;
-    if (active.id !== over.id) {
-      const oldIndex = turnos.indexOf(active.id);
-      const newIndex = turnos.indexOf(over.id);
-      const novosTurnos = arrayMove(turnos, oldIndex, newIndex);
-      setTurnos(novosTurnos);
-      setReordenar(true); // Sinaliza para gerar a escala após atualizar turnos
-    }
+    if (!over || active.id === over.id) return;
+    const oldIndex = active.id;
+    const newIndex = over.id;
+    const novosTurnos = arrayMove(turnos, oldIndex, newIndex);
+    setTurnos(novosTurnos);
+
+    const dataInicioObj = dayjs(datainicio, "YYYY-MM-DD").toDate();
+    setEscalaAnual(
+      gerarEscalaAnual(novosTurnos, diasTrabalhados, folgas, dataInicioObj)
+    );
   };
 
   const renderMonth = (monthIndex: number) => {
@@ -186,7 +233,6 @@ const Calendar = () => {
     const endOfMonth = dateBase.endOf("month");
     const startDay = startOfMonth.day();
     const totalDays = endOfMonth.date();
-
     const days = [];
 
     for (let i = 0; i < startDay; i++) {
@@ -200,19 +246,16 @@ const Calendar = () => {
         dayjs(e.data).isSame(date, "day")
       );
 
-      // Determina cor dinâmica para o turno
       let styleObj: React.CSSProperties = {};
       let isTurnoValido = false;
+
       if (escalaDia && escalaDia.turno !== "Folga") {
         const idx = turnos.findIndex(
           (t) => t.toLowerCase() === escalaDia.turno.toLowerCase()
         );
         if (idx !== -1) {
           const color = turnoColors[idx % turnoColors.length];
-          styleObj = {
-            background: color.bg,
-            color: color.text,
-          };
+          styleObj = { background: color.bg, color: color.text };
           isTurnoValido = true;
         }
       }
@@ -220,17 +263,14 @@ const Calendar = () => {
       days.push(
         <div
           key={`day-${monthIndex}-${day}`}
-          className={`text-center p-2 rounded border 
-            ${
-              feriado
-                ? "bg-red-100 text-red-800 font-semibold"
-                : escalaDia?.turno === "Folga"
-                ? "bg-green-100 text-green-800"
-                : ""
-            } 
-            cursor-pointer`}
+          className={`text-center p-2 rounded border ${
+            feriado
+              ? "bg-red-100 text-red-800 font-semibold"
+              : escalaDia?.turno === "Folga"
+              ? "bg-green-100 text-green-800"
+              : ""
+          } cursor-pointer`}
           style={
-            // Se for feriado, não aplica styleObj (cor do turno)
             feriado
               ? undefined
               : escalaDia && escalaDia.turno !== "Folga" && isTurnoValido
@@ -240,9 +280,6 @@ const Calendar = () => {
           title={feriado?.name || ""}
         >
           <div>{day}</div>
-          {feriado && (
-            <div className="text-xs mt-1 text-red-800 font-semibold"></div>
-          )}
           {escalaDia && <div className="text-xs mt-1">{escalaDia.turno}</div>}
         </div>
       );
@@ -268,45 +305,16 @@ const Calendar = () => {
     );
   };
 
-  // Componente para cada turno arrastável
-  function SortableTurno({ turno, idx, onRemove, color }: any) {
-    const { attributes, listeners, setNodeRef, transform, transition } =
-      useSortable({ id: turno });
-
-    const style = {
-      transform: CSS.Transform.toString(transform),
-      transition,
-      background: color.bg,
-      color: color.text,
-      cursor: "grab",
-    };
-
-    return (
-      <span
-        ref={setNodeRef}
-        style={style}
-        {...attributes}
-        {...listeners}
-        className="flex items-center px-2 py-1 rounded text-xs select-none"
-      >
-        {turno}
-        <button
-          type="button"
-          onClick={() => onRemove(turno)}
-          className="ml-2 text-red-600 font-bold hover:text-red-800"
-          title="Remover"
-        >
-          ×
-        </button>
-      </span>
-    );
-  }
-
   return (
     <div>
       <h1 className="text-2xl font-bold text-center mb-2">
-        Calendario Escala e o Ano
+        Calendário Escala do Ano
       </h1>
+      {erro && (
+        <div className="bg-red-200 text-red-800 px-4 py-2 rounded mb-4 text-center font-semibold">
+          {erro}
+        </div>
+      )}
       <form
         className="flex flex-wrap justify-center gap-4 mb-6"
         onSubmit={(e) => e.preventDefault()}
@@ -337,22 +345,19 @@ const Calendar = () => {
             onDragEnd={handleDragEnd}
           >
             <SortableContext
-              items={turnos}
+              items={turnos.map((_, idx) => idx)}
               strategy={horizontalListSortingStrategy}
             >
               <div className="flex flex-wrap gap-2 mt-2">
-                {turnos.map((turno, idx) => {
-                  const color = turnoColors[idx % turnoColors.length];
-                  return (
-                    <SortableTurno
-                      key={turno}
-                      turno={turno}
-                      idx={idx}
-                      onRemove={handleRemoveTurno}
-                      color={color}
-                    />
-                  );
-                })}
+                {turnos.map((turno, idx) => (
+                  <SortableTurno
+                    key={turno + idx}
+                    turno={turno}
+                    idx={idx}
+                    onRemove={handleRemoveTurno}
+                    color={turnoColors[idx % turnoColors.length]}
+                  />
+                ))}
               </div>
             </SortableContext>
           </DndContext>
@@ -392,7 +397,7 @@ const Calendar = () => {
           <button
             type="button"
             onClick={() => setGerar(true)}
-            className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 cursor-pointer :"
+            className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
           >
             Gerar Calendário
           </button>
