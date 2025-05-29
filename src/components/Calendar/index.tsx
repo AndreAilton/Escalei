@@ -6,7 +6,6 @@ import {
   DndContext,
   closestCenter,
   MouseSensor,
-  PointerSensor,
   TouchSensor,
   useSensor,
   useSensors,
@@ -90,11 +89,22 @@ const Calendar = () => {
   const [feriados, setFeriados] = useState<Feriado[]>([]);
 
   // Estado dos turnos como string[]
-  const [turnos, setTurnos] = useState<string[]>([]);
+  const [turnos, setTurnos] = useState<string[]>(() => {
+    const turnosSalvos = localStorage.getItem("turnos");
+    return turnosSalvos ? JSON.parse(turnosSalvos) : [];
+  });
   const [novoTurno, setNovoTurno] = useState<string>("");
-  const [diasTrabalhados, setDiasTrabalhados] = useState<number>(6);
-  const [folgas, setFolgas] = useState<number>(2);
-  const [datainicio, setDatainicio] = useState<string>("2025-01-01");
+  const [diasTrabalhados, setDiasTrabalhados] = useState<number>(() => {
+    const val = localStorage.getItem("diasTrabalhados");
+    return val ? Number(val) : 1;
+  });
+  const [folgas, setFolgas] = useState<number>(() => {
+    const val = localStorage.getItem("folgas");
+    return val ? Number(val) : 1;
+  });
+  const [datainicio, setDatainicio] = useState<string>(() => {
+    return localStorage.getItem("datainicio") || "2025-01-01";
+  });
   const [escalaAnual, setEscalaAnual] = useState<Escala[]>([]);
   const [gerar, setGerar] = useState<boolean>(false);
   const [erro, setErro] = useState<string | null>(null);
@@ -143,6 +153,41 @@ const Calendar = () => {
     }
   }, [gerar]);
 
+  // Carregar escala salva ao iniciar
+  useEffect(() => {
+    const escalaSalva = localStorage.getItem("escalaAnual");
+    if (escalaSalva) {
+      setEscalaAnual(JSON.parse(escalaSalva));
+    }
+  }, []);
+
+  // Salvar escala sempre que ela mudar
+  useEffect(() => {
+    if (escalaAnual.length > 0) {
+      localStorage.setItem("escalaAnual", JSON.stringify(escalaAnual));
+    }
+  }, [escalaAnual]);
+
+  // Salvar turnos sempre que eles mudarem
+  useEffect(() => {
+    localStorage.setItem("turnos", JSON.stringify(turnos));
+  }, [turnos]);
+
+  // Salvar diasTrabalhados sempre que mudar
+  useEffect(() => {
+    localStorage.setItem("diasTrabalhados", String(diasTrabalhados));
+  }, [diasTrabalhados]);
+
+  // Salvar folgas sempre que mudar
+  useEffect(() => {
+    localStorage.setItem("folgas", String(folgas));
+  }, [folgas]);
+
+  // Salvar datainicio sempre que mudar
+  useEffect(() => {
+    localStorage.setItem("datainicio", datainicio);
+  }, [datainicio]);
+
   const handleAddTurno = () => {
     const t = novoTurno.trim();
     if (!t) {
@@ -185,6 +230,8 @@ const Calendar = () => {
       color: color.text,
       cursor: "grab",
       userSelect: "none",
+      wordBreak: "break-word", // permite quebra de linha no nome do turno
+      maxWidth: 100, // limite de largura para cada turno
     };
 
     return (
@@ -195,7 +242,7 @@ const Calendar = () => {
         {...listeners}
         className="flex items-center px-2 py-1 rounded text-xs select-none"
       >
-        {turno}
+        <span className="truncate max-w-[60px]">{turno}</span>
         <button
           type="button"
           tabIndex={-1}
@@ -263,7 +310,7 @@ const Calendar = () => {
       days.push(
         <div
           key={`day-${monthIndex}-${day}`}
-          className={`text-center p-2 rounded border ${
+          className={`text-center break-words p-2 rounded border ${
             feriado
               ? "bg-red-100 text-red-800 font-semibold"
               : escalaDia?.turno === "Folga"
@@ -280,7 +327,7 @@ const Calendar = () => {
           title={feriado?.name || ""}
         >
           <div>{day}</div>
-          {escalaDia && <div className="text-xs mt-1">{escalaDia.turno}</div>}
+          {escalaDia && <div className="text-xs">{escalaDia.turno}</div>}
         </div>
       );
     }
@@ -306,7 +353,7 @@ const Calendar = () => {
   };
 
   return (
-    <div>
+    <div className="px-2 sm:px-4">
       <h1 className="text-2xl font-bold text-center mb-2">
         Calendário Escala do Ano
       </h1>
@@ -316,10 +363,10 @@ const Calendar = () => {
         </div>
       )}
       <form
-        className="flex flex-wrap justify-center gap-4 mb-6"
+        className="flex flex-col sm:flex-row flex-wrap justify-center gap-4 mb-6"
         onSubmit={(e) => e.preventDefault()}
       >
-        <div>
+        <div className="min-w-[220px]">
           <label className="block text-sm font-medium mb-1">
             Adicionar Turno:
           </label>
@@ -328,7 +375,7 @@ const Calendar = () => {
               type="text"
               value={novoTurno}
               onChange={(e) => setNovoTurno(e.target.value)}
-              className="border rounded px-2 py-1"
+              className="border rounded px-2 py-1 w-full"
               placeholder="Nome do turno"
             />
             <button
@@ -348,7 +395,10 @@ const Calendar = () => {
               items={turnos.map((_, idx) => idx)}
               strategy={horizontalListSortingStrategy}
             >
-              <div className="flex flex-wrap gap-2 mt-2">
+              <div
+                className="flex flex-wrap gap-2 mt-2 max-w-full overflow-x-auto"
+                style={{ maxWidth: 320 }}
+              >
                 {turnos.map((turno, idx) => (
                   <SortableTurno
                     key={turno + idx}
@@ -362,50 +412,66 @@ const Calendar = () => {
             </SortableContext>
           </DndContext>
         </div>
-        <div>
-          <label className="block text-sm font-medium mb-1">
-            Dias Trabalhados:
-          </label>
-          <input
-            type="number"
-            min={1}
-            value={diasTrabalhados}
-            onChange={(e) => setDiasTrabalhados(Number(e.target.value))}
-            className="border rounded px-2 py-1 w-20"
-          />
+        <div className="flex gap-4 justify-center text-center">
+          <div>
+            <label className="block text-sm font-medium mb-1">Dias</label>
+            <input
+              type="number"
+              value={diasTrabalhados === 0 ? "" : diasTrabalhados}
+              onChange={(e) => {
+                const val = e.target.value;
+                setDiasTrabalhados(val === "" ? 0 : Number(val));
+              }}
+              className="border rounded px-2 py-1 w-20"
+            />
+          </div>
+
+          <div className="">
+            <label className="block text-sm font-medium mb-1">Folgas:</label>
+            <input
+              type="number"
+              value={folgas === 0 ? "" : folgas}
+              onChange={(e) => {
+                const val = e.target.value;
+                setFolgas(val === "" ? 0 : Number(val));
+              }}
+              className="border rounded px-2 py-1 w-20"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">
+              Data Início:
+            </label>
+            <input
+              type="date"
+              value={datainicio}
+              onChange={(e) => setDatainicio(e.target.value)}
+              className="border rounded px-2 py-1"
+            />
+          </div>
         </div>
-        <div>
-          <label className="block text-sm font-medium mb-1">Folgas:</label>
-          <input
-            type="number"
-            min={0}
-            value={folgas}
-            onChange={(e) => setFolgas(Number(e.target.value))}
-            className="border rounded px-2 py-1 w-20"
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium mb-1">Data Início:</label>
-          <input
-            type="date"
-            value={datainicio}
-            onChange={(e) => setDatainicio(e.target.value)}
-            className="border rounded px-2 py-1"
-          />
-        </div>
+
         <div className="flex items-end">
           <button
             type="button"
             onClick={() => setGerar(true)}
-            className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+            className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 w-full sm:w-auto"
           >
             Gerar Calendário
           </button>
         </div>
       </form>
-      <div className="flex flex-wrap justify-center gap-6 p-6 bg-gray-100">
+      <div className="flex flex-col sm:flex-row flex-wrap justify-center gap-2  sm:p-6 bg-gray-100 overflow-x-auto">
         {escalaAnual.length > 0 &&
-          [...Array(12).keys()].map((monthIndex) => renderMonth(monthIndex))}
+          [...Array(12).keys()].map((monthIndex) => (
+            <div
+              key={monthIndex}
+              className="w-full sm:w-[440px] mb-4 sm:mb-0"
+              style={{ minWidth: 360, maxWidth: 500 }}
+            >
+              {renderMonth(monthIndex)}
+            </div>
+          ))}
       </div>
     </div>
   );
