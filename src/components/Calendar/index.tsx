@@ -151,7 +151,7 @@ const Calendar = () => {
       setErro(null);
       setGerar(false);
     }
-  }, [gerar]);
+  }, [gerar, diasTrabalhados, folgas, datainicio, turnos]); // <-- adicione as dependências
 
   // Carregar escala salva ao iniciar
   useEffect(() => {
@@ -430,6 +430,7 @@ const Calendar = () => {
             <label className="block text-sm font-medium mb-1">Folgas:</label>
             <input
               type="number"
+              min={0} // permite zero
               value={folgas === 0 ? "" : folgas}
               onChange={(e) => {
                 const val = e.target.value;
