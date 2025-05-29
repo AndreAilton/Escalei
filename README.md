@@ -1,54 +1,46 @@
-# React + TypeScript + Vite
+# Calendário Escala Anual (Escalei)
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+## [Link do Projeto](https://andreailton.github.io/Escalei/)  
+[**Monte Sua Escala*](https://andreailton.github.io/Escalei/)
 
-Currently, two official plugins are available:
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## Resumo
 
-## Expanding the ESLint configuration
+Este projeto é uma aplicação web para geração e visualização de escalas anuais de trabalho, permitindo o cadastro dinâmico de turnos, configuração de dias trabalhados, folgas e data de início. O sistema salva automaticamente as configurações e a escala gerada no navegador, garantindo persistência dos dados mesmo após atualizar a página.
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## Dependências
 
-```js
-export default tseslint.config({
-  extends: [
-    // Remove ...tseslint.configs.recommended and replace with this
-    ...tseslint.configs.recommendedTypeChecked,
-    // Alternatively, use this for stricter rules
-    ...tseslint.configs.strictTypeChecked,
-    // Optionally, add this for stylistic rules
-    ...tseslint.configs.stylisticTypeChecked,
-  ],
-  languageOptions: {
-    // other options...
-    parserOptions: {
-      project: ['./tsconfig.node.json', './tsconfig.app.json'],
-      tsconfigRootDir: import.meta.dirname,
-    },
-  },
-})
-```
+- **React** (com TypeScript)
+- **dayjs**: Manipulação de datas
+- **@dnd-kit/core** e **@dnd-kit/sortable**: Drag and drop para ordenação dos turnos
+- **Tailwind CSS**: Estilização da interface
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Estrutura do Projeto
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+- **src/components/Calendar/index.tsx**: Componente principal do calendário, onde estão as regras de negócio, manipulação de turnos, geração da escala e persistência no localStorage.
+- **src/main.tsx**: Ponto de entrada da aplicação React.
+- **index.html**: Estrutura base da aplicação.
 
-export default tseslint.config({
-  plugins: {
-    // Add the react-x and react-dom plugins
-    'react-x': reactX,
-    'react-dom': reactDom,
-  },
-  rules: {
-    // other rules...
-    // Enable its recommended typescript rules
-    ...reactX.configs['recommended-typescript'].rules,
-    ...reactDom.configs.recommended.rules,
-  },
-})
-```
+## Funcionalidades
+
+- **Adicionar Turnos**: Cadastre quantos turnos desejar, com nomes personalizados.
+- **Ordenação de Turnos**: Arraste para reordenar os turnos (drag and drop).
+- **Configuração de Dias e Folgas**: Defina quantos dias trabalhados e quantos de folga cada turno terá (permitindo inclusive folga zero).
+- **Data de Início**: Escolha a data inicial da escala.
+- **Geração da Escala**: Clique em "Gerar Calendário" para criar a escala anual baseada nas configurações.
+- **Persistência Local**: Todas as configurações e a escala gerada são salvas automaticamente no localStorage.
+- **Interface Responsiva**: Layout adaptável para desktop e mobile.
+
+## Boas Práticas
+
+- **Persistência automática**: Uso de localStorage para salvar turnos, dias, folgas, data de início e escala.
+- **Componentização**: Separação clara entre lógica de negócio e apresentação.
+- **Validação de Dados**: Impede turnos duplicados e campos obrigatórios vazios.
+- **Acessibilidade**: Inputs e botões com labels claros.
+- **Drag and Drop**: Implementação moderna e acessível para ordenação dos turnos.
+
+## Como rodar o projeto
+
+1. Instale as dependências:
+   ```bash
+   npm install
