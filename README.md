@@ -1,7 +1,7 @@
 # Calendário Escala Anual (Escalei)
 
 ## [Link do Projeto](https://andreailton.github.io/Escalei/)  
-[**Monte Sua Escala*](https://andreailton.github.io/Escalei/)
+[**Monte Sua Escala**](https://andreailton.github.io/Escalei/)
 
 
 ## Resumo
